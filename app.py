@@ -215,8 +215,8 @@ def run_pipeline(n, test_sz, scaler_name, apply_smote):
     df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
     df['MonthlyCharges'] = pd.to_numeric(df['MonthlyCharges'], errors='coerce')
     missing_before = df.isnull().sum().to_dict()
-    df['TotalCharges'].fillna(df['TotalCharges'].median(), inplace=True)
-    df['MonthlyCharges'].fillna(df['MonthlyCharges'].median(), inplace=True)
+    df['TotalCharges'] = df['TotalCharges'].fillna(df['TotalCharges'].median())
+    df['MonthlyCharges'] = df['MonthlyCharges'].fillna(df['MonthlyCharges'].median())
 
     # ── 2. Duplicates
     n_dups = df.duplicated().sum()
@@ -246,11 +246,17 @@ def run_pipeline(n, test_sz, scaler_name, apply_smote):
     # ── 5. Features / Target
     X = df.drop('Churn', axis=1)
     y = df['Churn']
+
+    # ── Fill any remaining NaNs before scaling
+    X = X.fillna(X.median(numeric_only=True))
+    X = X.fillna(0)  # fallback for any non-numeric columns
     feature_names = X.columns.tolist()
 
     # ── 6. Scale
     scaler = StandardScaler() if scaler_name == "StandardScaler" else MinMaxScaler()
     X_scaled = scaler.fit_transform(X)
+    # Final NaN safety check after scaling
+    X_scaled = np.nan_to_num(X_scaled, nan=0.0)
 
     # ── 7. Split
     X_tr, X_te, y_tr, y_te = train_test_split(
